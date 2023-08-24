@@ -35,20 +35,17 @@ export function getExercises(): Result<Vec<Exercise>, string> {
 
 $query;
 export function getExercise(id: string): Result<Exercise, string> {
-  return match(exerciseStorage.get(id), {
-    Some: (exercise) => Result.Ok<Exercise, string>(exercise),
-    None: () =>
-      Result.Err<Exercise, string>(`An exercise with id=${id} not found`),
-  });
+  return exerciseStorage.get(id)?.map(Result.Ok) ?? Result.Err(`An exercise with id=${id} not found`);
 }
 
 $update;
 export function addExercise(
   payload: ExercisePayload
 ): Result<Exercise, string> {
-  const exercise: Exercise = { id: uuidv4(), date: ic.time(), ...payload };
-  exerciseStorage.insert(exercise.id, exercise);
-  return Result.Ok(exercise);
+  const exercise = { id: uuidv4(), date: ic.time(), ...payload };
+  return exerciseStorage.insert(exercise.id, exercise)
+    ?.map(Result.Ok)
+    : Result.Err(`An exercise with id=${exercise.id} already exists`);
 }
 
 $update;
@@ -56,29 +53,27 @@ export function updateExercise(
   id: string,
   payload: ExercisePayload
 ): Result<Exercise, string> {
-  return match(exerciseStorage.get(id), {
-    Some: (exercise) => {
-      const updatedExercise: Exercise = { ...exercise, ...payload };
-      exerciseStorage.insert(exercise.id, updatedExercise);
-      return Result.Ok<Exercise, string>(updatedExercise);
-    },
-    None: () =>
-      Result.Err<Exercise, string>(
-        `Couldn't update an exercise with id=${id}. Exercise not found`
-      ),
-  });
-}
+  const exercise = exerciseStorage.get(id);
+  if (!exercise) {
+    return Result.Err(`Couldn't update an exercise with id=${id}. Exercise not found`);
+  }
 
+  const updatedExercise = { ...exercise, ...payload };
+  return exerciseStorage.insert(updatedExercise.id, updatedExercise)
+    ?.map(Result.Ok)
+    : Result.Err(`Couldn't update an exercise with id=${id}. Exercise not found`);
+}
 
 $update;
 export function deleteExercise(id: string): Result<Exercise, string> {
-  return match(exerciseStorage.remove(id), {
-    Some: (deletedExercise) => Result.Ok<Exercise, string>(deletedExercise),
-    None: () =>
-      Result.Err<Exercise, string>(
-        `Couldn't delete an exercise with id=${id}. Exercise not found.`
-      ),
-  });
+  const exercise = exerciseStorage.get(id);
+  if (!exercise) {
+    return Result.Err(`Couldn't delete an exercise with id=${id}. Exercise not found.`);
+  }
+
+  return exerciseStorage.remove(id)
+    ?.map(Result.Ok)
+    : Result.Err(`Couldn't delete an exercise with id=${id}. Exercise not found.`);
 }
 
 export function calculateTotalCaloriesBurned(): Result<number, string> {
